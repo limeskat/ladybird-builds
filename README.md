@@ -10,6 +10,7 @@ Each release is tagged with the upstream commit date and short hash, such as `20
 | --- | --- |
 | Debian sid | `ladybird_0~<date>.git<hash>+sid_amd64.deb` |
 | Ubuntu 26.04 | `ladybird_0~<date>.git<hash>+ubuntu26.04_amd64.deb` |
+| Arch Linux x86-64 | `ladybird-git-<date>.<hash>-1-x86_64.pkg.tar.zst` |
 | Any other x86-64 Linux with glibc 2.39 or newer | `Ladybird-<date>.git<hash>-x86_64.AppImage` |
 
 On Debian sid:
@@ -20,6 +21,13 @@ sudo apt install ./ladybird_*+sid_amd64.deb
 ```
 
 On Ubuntu 26.04, swap `+sid` for `+ubuntu26.04` in both lines.
+
+On Arch Linux:
+
+```sh
+gh release download --repo h3nc4/ladybird-builds --pattern 'ladybird-git-*.pkg.tar.zst'
+sudo pacman -U ./ladybird-git-*.pkg.tar.zst
+```
 
 Anywhere else:
 
@@ -47,11 +55,13 @@ The build targets x86-64-v3, the level that adds AVX2. Intel Haswell and AMD Exc
 
 The `.deb` depends on the exact Qt release it was built against, because Ladybird uses Qt's private API. When the distribution moves to a newer Qt, apt holds Qt back or offers to remove `ladybird` until the next weekly build catches up.
 
+The Arch package records upstream's Qt 6.10 minimum instead, since Arch has no private-ABI marker to pin against and holding a single Qt package back is not supported on a rolling release. It is built against the Qt release in `extra` at build time; a later Qt update may need the next build before Ladybird starts again.
+
 Ladybird itself is pre-alpha. Expect sites to break and the browser to crash.
 
 ## How it builds
 
-Each `<target>.Dockerfile` describes a build environment, with toolchain and Qt installed and the build itself left to the scripts. `scripts/build.sh` compiles upstream's `Distribution` preset, which links every dependency statically except Qt and the system libraries, targets the x86-64-v3 baseline and skips link-time optimisation. `scripts/deb.sh` and `scripts/appimage.sh` then package the result. The AppImage is built on Debian 13 and bundles Qt 6.11 from the Qt online archive, since Ladybird needs Qt 6.10 or newer.
+Each `<target>.Dockerfile` describes a build environment, with toolchain and Qt installed and the build itself left to the scripts. `scripts/build.sh` compiles upstream's `Distribution` preset, which links every dependency statically except Qt and the system libraries, targets the x86-64-v3 baseline and skips link-time optimisation. `scripts/deb.sh`, `scripts/appimage.sh` and `scripts/pkgbuild.sh` then package the result. The AppImage is built on Debian 13 and bundles Qt 6.11 from the Qt online archive, since Ladybird needs Qt 6.10 or newer. The Arch package is built in `archlinux:base-devel` and runs `makepkg` as an unprivileged user, since `makepkg` refuses to run as root.
 
 The `Release` workflow runs every Monday at 06:00 UTC and skips a commit already released. For each target, one job builds the vcpkg dependencies, and 4 runners then compile a quarter of the object files apiece into ccache stores uploaded as artifacts. A last job merges those stores and runs the full build, where every compile is a cache hit and only linking and packaging remain. The vcpkg cache is keyed on upstream's `vcpkg.json` and the Dockerfile, so a new Ladybird commit reuses last week's dependencies. The ccache store is saved per run and restored by the next one. Both are saved even when a job runs out of time, and the next run resumes from that point.
 

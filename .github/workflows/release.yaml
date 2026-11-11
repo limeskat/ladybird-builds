@@ -4,6 +4,17 @@ on:
   schedule:
     - cron: "0 6 * * 1" # Mondays at 03:00 in São Paulo
   workflow_dispatch:
+    inputs:
+      target:
+        description: Target to build
+        type: choice
+        options:
+          - all
+          - arch
+          - debian
+          - ubuntu
+          - appimage
+        default: all
   push:
     branches:
       - "main"
@@ -50,21 +61,60 @@ jobs:
             echo "released=${released}"
           } >>"${GITHUB_OUTPUT}"
 
+  targets:
+    name: Select Targets
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      targets: ${{ steps.select.outputs.targets }}
+      packages: ${{ steps.select.outputs.packages }}
+    steps:
+      - name: Select targets
+        id: select
+        env:
+          REQUESTED: ${{ inputs.target }}
+        run: |
+          case "${REQUESTED:-all}" in
+            all)
+              echo 'targets=["debian","ubuntu","appimage","arch"]' >>"${GITHUB_OUTPUT}"
+              echo 'packages=[{"target":"debian","package":"scripts/deb.sh /w/src /w/root /w/dist sid"},{"target":"ubuntu","package":"scripts/deb.sh /w/src /w/root /w/dist ubuntu26.04"},{"target":"appimage","package":"scripts/appimage.sh /w/src /w/root /w/dist"},{"target":"arch","package":"scripts/pkgbuild.sh /w/src /w/root /w/dist"}]' >>"${GITHUB_OUTPUT}"
+              ;;
+            debian)
+              echo 'targets=["debian"]' >>"${GITHUB_OUTPUT}"
+              echo 'packages=[{"target":"debian","package":"scripts/deb.sh /w/src /w/root /w/dist sid"}]' >>"${GITHUB_OUTPUT}"
+              ;;
+            ubuntu)
+              echo 'targets=["ubuntu"]' >>"${GITHUB_OUTPUT}"
+              echo 'packages=[{"target":"ubuntu","package":"scripts/deb.sh /w/src /w/root /w/dist ubuntu26.04"}]' >>"${GITHUB_OUTPUT}"
+              ;;
+            appimage)
+              echo 'targets=["appimage"]' >>"${GITHUB_OUTPUT}"
+              echo 'packages=[{"target":"appimage","package":"scripts/appimage.sh /w/src /w/root /w/dist"}]' >>"${GITHUB_OUTPUT}"
+              ;;
+            arch)
+              echo 'targets=["arch"]' >>"${GITHUB_OUTPUT}"
+              echo 'packages=[{"target":"arch","package":"scripts/pkgbuild.sh /w/src /w/root /w/dist"}]' >>"${GITHUB_OUTPUT}"
+              ;;
+            *)
+              echo "Unknown target: ${REQUESTED}" >&2
+              exit 1
+              ;;
+          esac
+
   deps:
     name: Dependencies ${{ matrix.target }}
-    needs: upstream
+    needs:
+      - upstream
+      - targets
     if: github.event_name != 'schedule' || needs.upstream.outputs.released != 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 355
+    timeout-minutes: 360
     permissions:
       contents: read
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - debian
-          - ubuntu
-          - appimage
+        target: ${{ fromJSON(needs.targets.outputs.targets) }}
     env:
       TARGET: ${{ matrix.target }}
       COMMIT: ${{ needs.upstream.outputs.commit }}
@@ -116,18 +166,16 @@ jobs:
     name: Compile ${{ matrix.target }} ${{ matrix.shard }}
     needs:
       - upstream
+      - targets
       - deps
     runs-on: ubuntu-latest
-    timeout-minutes: 355
+    timeout-minutes: 360
     permissions:
       contents: read
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - debian
-          - ubuntu
-          - appimage
+        target: ${{ fromJSON(needs.targets.outputs.targets) }}
         shard:
           - 0
           - 1
@@ -189,21 +237,16 @@ jobs:
     name: Link ${{ matrix.target }}
     needs:
       - upstream
+      - targets
       - compile
     runs-on: ubuntu-latest
-    timeout-minutes: 355
+    timeout-minutes: 360
     permissions:
       contents: read
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - target: debian
-            package: scripts/deb.sh /w/src /w/root /w/dist sid
-          - target: ubuntu
-            package: scripts/deb.sh /w/src /w/root /w/dist ubuntu26.04
-          - target: appimage
-            package: scripts/appimage.sh /w/src /w/root /w/dist
+        include: ${{ fromJSON(needs.targets.outputs.packages) }}
     env:
       TARGET: ${{ matrix.target }}
       COMMIT: ${{ needs.upstream.outputs.commit }}
@@ -281,6 +324,7 @@ jobs:
       - link
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 360
     permissions:
       contents: write
     steps:
