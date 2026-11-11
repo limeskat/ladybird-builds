@@ -37,7 +37,7 @@ RUN pacman-key --init && \
   pacman -S --needed --noconfirm \
   autoconf autoconf-archive automake bison ca-certificates ccache clang cmake \
   curl file flex fontconfig freetype2 gettext git glslang gperf libdrm \
-  libglvnd libpulse libtool libx11 libxcb libxkbcommon m4 mesa nasm ncurses \
+  libglvnd libpulse libtool libx11 libxcb libxkbcommon lld m4 mesa nasm ncurses \
   ninja openssl patch perl pkgconf python qt6-base qt6-multimedia \
   qt6-positioning qt6-svg qt6-tools qt6-wayland tar ttf-liberation unzip \
   wayland xcb-util-cursor xcb-util-image xcb-util-keysyms \
