@@ -77,6 +77,10 @@ options=(!debug)
 package() {
   cp -a "${root}/." "\${pkgdir}/"
   ln -s Ladybird "\${pkgdir}/usr/bin/ladybird"
+  install -Dm644 "${src}/Meta/CMake/freedesktop/org.ladybird.Ladybird.desktop" \\
+    "\${pkgdir}/usr/share/applications/org.ladybird.Ladybird.desktop"
+  install -Dm644 "${src}/Meta/CMake/freedesktop/org.ladybird.Ladybird.svg" \\
+    "\${pkgdir}/usr/share/icons/hicolor/scalable/apps/org.ladybird.Ladybird.svg"
 }
 EOF
 
