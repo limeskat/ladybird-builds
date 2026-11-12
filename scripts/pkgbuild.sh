@@ -69,7 +69,6 @@ pkgdesc="Ladybird web browser, unofficial snapshot built from upstream ${sha} (Q
 arch=('x86_64')
 url="https://github.com/h3nc4/ladybird-builds"
 license=('BSD-2-Clause')
-packager="Ladybird Builds <https://github.com/h3nc4/ladybird-builds>"
 depends=(${depends[*]})
 provides=('ladybird')
 conflicts=('ladybird')
@@ -82,7 +81,7 @@ package() {
 EOF
 
 chown -R builder:builder "${work}"
-su - builder -c "cd '${work}' && PKGDEST='${work}/out' makepkg --force --nodeps --noconfirm"
+su - builder -c "cd '${work}' && PKGDEST='${work}/out' PACKAGER='Ladybird Builds <https://github.com/h3nc4/ladybird-builds>' makepkg --force --nodeps --noconfirm"
 
 mkdir -p "${out}"
 cp "${work}"/out/*.pkg.tar.zst "${out}/"
