@@ -15,20 +15,6 @@ on:
           - ubuntu
           - appimage
         default: all
-  push:
-    branches:
-      - "main"
-    paths:
-      - "*.Dockerfile"
-      - "scripts/**"
-      - ".github/workflows/release.yaml"
-  pull_request:
-    branches:
-      - "main"
-    paths:
-      - "*.Dockerfile"
-      - "scripts/**"
-      - ".github/workflows/release.yaml"
 
 permissions: {}
 
@@ -322,7 +308,6 @@ jobs:
     needs:
       - upstream
       - link
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 360
     permissions:
@@ -345,7 +330,27 @@ jobs:
           if [ "${RELEASED}" = "true" ]; then
             gh release upload "${TAG}" dist/* --clobber --repo "${GITHUB_REPOSITORY}"
           else
+            previous="$(gh release view --repo "${GITHUB_REPOSITORY}" --json tagName --jq .tagName 2>/dev/null || true)"
             gh release create "${TAG}" dist/* --repo "${GITHUB_REPOSITORY}" --target "${GITHUB_SHA}" \
               --title "Ladybird ${TAG}" \
               --notes "Built from https://github.com/LadybirdBrowser/ladybird/commit/${COMMIT}"
+            if [ -n "${previous}" ] && [ "${previous}" != "${TAG}" ]; then
+              gh release delete "${previous}" --repo "${GITHUB_REPOSITORY}" --yes --cleanup-tag
+            fi
           fi
+
+  cleanup:
+    name: Delete Artifacts
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Delete run artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ids="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts?per_page=100" --jq '.artifacts[].id')"
+          for id in ${ids}; do
+            gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/${id}"
+          done

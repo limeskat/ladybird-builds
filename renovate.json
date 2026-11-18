@@ -11,7 +11,7 @@
   "prHourlyLimit": 0,
   "packageRules": [
     {
-      "description": "Auto-merge all minor, patch, pin, and digest updates",
+      "description": "Auto-merge all minor, patch, pin, and digest updates without waiting for checks, since builds only run on the weekly schedule",
       "matchUpdateTypes": [
         "minor",
         "patch",
@@ -21,7 +21,13 @@
       "addLabels": [
         "automerge"
       ],
-      "automerge": true
+      "automerge": true,
+      "ignoreTests": true
+    },
+    {
+      "description": "Majors never automerge, so rebase them only on a conflict rather than rerunning CI each time main moves",
+      "matchUpdateTypes": ["major"],
+      "rebaseWhen": "conflicted"
     }
   ]
 }

@@ -20,7 +20,7 @@ ARG QT_VERSION="6.11.3"
 ARG AQTINSTALL_VERSION="3.3.0"
 
 ################################################################################
-FROM debian:13-slim@sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4 AS builder
+FROM debian:13-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 AS builder
 ARG RUST_TOOLCHAIN
 ARG LLVM_VERSION
 ARG QT_VERSION
@@ -44,11 +44,12 @@ ADD --chmod=644 --checksum=sha256:8b2a587ffd672c4687e7581dad4b2f6c1bb2ad6b480cd9
   https://apt.llvm.org/llvm-snapshot.gpg.key /usr/share/keyrings/llvm.asc
 
 # The LLVM source is added once ca-certificates exists, since apt.llvm.org only serves https
+# apt.llvm.org once went unresolvable for longer than the 3 default retries last, and `--error-on=any` fails here instead of at the install
 RUN apt-get update && \
   apt-get install -y --no-install-recommends ca-certificates && \
   echo "deb [signed-by=/usr/share/keyrings/llvm.asc] https://apt.llvm.org/trixie/ llvm-toolchain-trixie-${LLVM_VERSION} main" \
   > /etc/apt/sources.list.d/llvm.list && \
-  apt-get update && \
+  apt-get -o Acquire::Retries=8 update --error-on=any && \
   apt-get install -y --no-install-recommends \
   autoconf autoconf-archive automake build-essential ca-certificates ccache \
   clang-${LLVM_VERSION} cmake curl file git glslang-tools \

@@ -29,6 +29,8 @@ export VERSION="${date}.git${sha}"
 # A build container has no FUSE to mount the linuxdeploy AppImages with.
 export APPIMAGE_EXTRACT_AND_RUN=1
 export EXTRA_PLATFORM_PLUGINS="libqwayland.so"
+# The strip bundled in linuxdeploy predates the .relr.dyn section that lld writes.
+export NO_STRIP=1
 
 mkdir -p "${out}"
 cd "${out}"

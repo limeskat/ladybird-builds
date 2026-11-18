@@ -44,15 +44,13 @@ cmake --preset Distribution \
   -DENABLE_INSTALL_HEADERS=OFF \
   -DBUILD_TESTING=OFF
 
-# Upstream misses some edges onto generated headers, so generate them all before compiling.
-cmake --build Build/distribution --parallel "${jobs}" --target ladybird_codegen_accumulator
-
 if [ "${BUILD_STEP:-}" = configure ]; then
   exit 0
 fi
 
-# Rust crates write C++ FFI headers that the codegen target leaves out.
+# shard.py compiles outside ninja, so generate every header first, and Rust crates write the FFI ones.
 if [ -n "${BUILD_SHARD:-}" ]; then
+  cmake --build Build/distribution --parallel "${jobs}" --target ladybird_codegen_accumulator
   ninja -C Build/distribution -t targets all | sed -n 's/^\([A-Za-z0-9_]*-build\): phony$/\1/p' >crates
   xargs cmake --build Build/distribution --parallel "${jobs}" --target <crates
   ninja -C Build/distribution -t compdb >Build/distribution/compdb.json
@@ -62,5 +60,6 @@ fi
 
 cmake --build Build/distribution --parallel "${jobs}"
 DESTDIR="${root}" cmake --install Build/distribution --component ladybird_Runtime
+DESTDIR="${root}" cmake --install Build/distribution --component ladybird_Freedesktop
 
 find "${root}" -name '*.a' -delete
